@@ -136,11 +136,11 @@ def initialize_app():
         print(f"Error connecting to database: {e}")
         return
 
-    G = build_graph()
-    scores = calculate_pagerank(G, seed_nodes=SEED_NODES)
-    save_daily_metrics(scores,G)
+    # G = build_graph()
+    # scores = calculate_pagerank(G, seed_nodes=SEED_NODES)
+    # save_daily_metrics(scores,G)
 
 if __name__ == '__main__':
     with app.app_context():  
         initialize_app()
-    app.run(debug=True)
+    app.run(debug=True, port=5000)

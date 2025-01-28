@@ -4,3 +4,7 @@
 **/node_modules/
 **/venv/
 **/pacakge.lock
+**/data
+
+**/build
+**/.next

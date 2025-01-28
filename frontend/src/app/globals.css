@@ -3,11 +3,50 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-rgb: 255, 255, 255;
+	--primary: #3b82f6;
+	--primary-dark: #2563eb;
+	--secondary: #6366f1;
+	--accent: #8b5cf6;
+	--background: #f8fafc;
+	--foreground: #1e293b;
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+	color: var(--foreground);
+	background: var(--background);
+	min-height: 100vh;
+}
+
+@layer components {
+	.gradient-border {
+		position: relative;
+		background: white;
+		background-clip: padding-box;
+		border: 2px solid transparent;
+	}
+
+	.gradient-border::before {
+		content: "";
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		z-index: -1;
+		margin: -2px;
+		border-radius: inherit;
+		background: linear-gradient(to right, var(--primary), var(--accent));
+	}
+
+	.stat-card {
+		@apply bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6;
+	}
+
+	.stat-value {
+		@apply text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+	}
+
+	.stat-label {
+		@apply text-sm font-medium text-gray-600 mb-1;
+	}
 }
