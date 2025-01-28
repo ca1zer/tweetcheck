@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "twitter-influence-api"
+version = "0.1.0"
+description = "Twitter influence analysis API using PageRank"
+authors = ["Your Name <your.email@example.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+flask = "^3.0.0"
+flask-cors = "^4.0.0"
+networkx = "^3.2.1"
+numpy = "^1.26.3"
+pandas = "^2.2.0"
+scipy = "^1.12.0"
+python-dotenv = "^1.0.0"
+tqdm = "^4.66.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
