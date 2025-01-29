@@ -1,39 +1,42 @@
-import Link from "next/link";
-
-export function FollowerList({ followers }) {
+export function FollowerList({ followers, onUserSelect }) {
 	return (
-		<div className="stat-card">
-			<h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-				Top Influential Followers
-			</h2>
+		<div className="glass-card rounded-2xl p-8">
+			<h2 className="text-3xl gradient-text mb-8">Top Influential Followers</h2>
 
 			<div className="space-y-4">
 				{followers.map((follower) => (
-					<Link
+					<button
 						key={follower.user_id}
-						href={`/user/${follower.username}`}
-						className="flex items-center p-6 rounded-xl border-2 border-gray-100 hover:border-transparent hover:shadow-lg transition-all duration-300 gradient-border"
+						onClick={() => onUserSelect(follower.username)}
+						className="w-full user-card"
 					>
-						<img
-							src={follower.profile_pic_url || "/default-avatar.png"}
-							alt={follower.username}
-							className="w-16 h-16 rounded-full mr-6 ring-2 ring-gray-100"
-						/>
-
-						<div className="flex-grow">
-							<h3 className="text-lg font-semibold">@{follower.username}</h3>
-							<p className="text-gray-600">
-								{follower.follower_count.toLocaleString()} followers
-							</p>
+						<div className="flex items-center space-x-3">
+							<div className="relative">
+								<div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-neon-purple to-neon-pink opacity-75 blur-sm" />
+								<div className="relative w-10 h-10 rounded-full bg-gradient-to-r from-neon-purple to-neon-pink p-0.5">
+									<img
+										src={follower.profile_pic_url || "/default-avatar.png"}
+										alt={follower.username}
+										className="w-full h-full rounded-full object-cover bg-dark-900"
+									/>
+								</div>
+							</div>
+							<div className="flex-1 text-left">
+								<h3 className="text-base font-semibold text-white">
+									@{follower.username}
+								</h3>
+								<p className="text-sm text-white/40">
+									{follower.follower_count.toLocaleString()} followers
+								</p>
+							</div>
+							<div className="text-right">
+								<div className="text-xs text-white/40 mb-0.5">Network Rank</div>
+								<div className="gradient-text text-sm">
+									Top {(100 - follower.pagerank_percentile).toFixed(1)}%
+								</div>
+							</div>
 						</div>
-
-						<div className="text-right">
-							<p className="text-sm text-gray-600 mb-1">Network Rank</p>
-							<p className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-								Top {(100 - follower.pagerank_percentile).toFixed(1)}%
-							</p>
-						</div>
-					</Link>
+					</button>
 				))}
 			</div>
 		</div>

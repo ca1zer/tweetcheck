@@ -2,51 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-	--primary: #3b82f6;
-	--primary-dark: #2563eb;
-	--secondary: #6366f1;
-	--accent: #8b5cf6;
-	--background: #f8fafc;
-	--foreground: #1e293b;
-}
-
-body {
-	color: var(--foreground);
-	background: var(--background);
-	min-height: 100vh;
+@layer base {
+	html {
+		@apply antialiased;
+	}
+	body {
+		@apply text-white bg-dark-950;
+	}
 }
 
 @layer components {
-	.gradient-border {
-		position: relative;
-		background: white;
-		background-clip: padding-box;
-		border: 2px solid transparent;
+	.glass-card {
+		@apply bg-dark-950/95 backdrop-blur-xl border border-neon-purple/20 shadow-neon shadow-neon-purple/10
+		hover:shadow-neon-lg hover:shadow-neon-purple/20 hover:bg-dark-900/95 hover:border-neon-purple/30
+		transition-all duration-300 relative overflow-hidden;
 	}
 
-	.gradient-border::before {
-		content: "";
-		position: absolute;
-		top: 0;
-		right: 0;
-		bottom: 0;
-		left: 0;
-		z-index: -1;
-		margin: -2px;
-		border-radius: inherit;
-		background: linear-gradient(to right, var(--primary), var(--accent));
+	.glass-card::before {
+		@apply content-[''] absolute inset-0 bg-gradient-to-r from-neon-purple/10 via-neon-pink/10 to-neon-blue/10
+		opacity-0 transition-opacity duration-300;
 	}
 
-	.stat-card {
-		@apply bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6;
+	.glass-card:hover::before {
+		@apply opacity-100;
 	}
 
-	.stat-value {
-		@apply text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+	.user-card {
+		@apply w-full bg-dark-950/95 backdrop-blur-xl border border-neon-purple/20 rounded-lg p-3
+		transition-all duration-300 hover:bg-dark-900/95 hover:shadow-neon hover:shadow-neon-purple/20
+		hover:border-neon-purple/30 hover:-translate-y-0.5 cursor-pointer
+		relative overflow-hidden;
 	}
 
-	.stat-label {
-		@apply text-sm font-medium text-gray-600 mb-1;
+	.user-card::before {
+		@apply content-[''] absolute inset-0 bg-gradient-to-r from-neon-purple/10 via-neon-pink/10 to-neon-blue/10
+		opacity-0 transition-opacity duration-300;
 	}
+
+	.user-card:hover::before {
+		@apply opacity-100;
+	}
+
+	.search-input {
+		@apply w-full bg-dark-950/95 border border-neon-purple/20 text-white placeholder-white/30
+		focus:shadow-neon focus:shadow-neon-purple/30 focus:border-neon-purple/40
+		transition-all duration-300 text-sm py-2 rounded-lg;
+	}
+
+	.search-button {
+		@apply bg-gradient-to-r from-neon-purple to-neon-pink text-white font-medium
+		transition-all duration-300 hover:shadow-neon hover:shadow-neon-purple/30 hover:-translate-y-0.5
+		disabled:opacity-50 disabled:hover:shadow-none disabled:hover:translate-y-0 rounded-lg text-sm
+		relative overflow-hidden;
+	}
+
+	.search-button::before {
+		@apply content-[''] absolute inset-0 bg-white/20
+		opacity-0 transition-opacity duration-300;
+	}
+
+	.search-button:hover::before {
+		@apply opacity-100;
+	}
+
+	.gradient-text {
+		@apply bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink
+		bg-clip-text text-transparent font-bold drop-shadow-[0_0_12px_rgba(189,0,255,0.5)];
+	}
+}
+
+@keyframes float {
+	0%,
+	100% {
+		transform: translateY(0);
+	}
+	50% {
+		transform: translateY(-10px);
+	}
+}
+
+.animate-float {
+	animation: float 3s ease-in-out infinite;
 }
