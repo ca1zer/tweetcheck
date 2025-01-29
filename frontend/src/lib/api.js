@@ -1,18 +1,10 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 console.log("API_BASE is:", API_BASE);
 
 export async function searchUsers(query) {
 	const url = `${API_BASE}/api/search?q=${encodeURIComponent(query)}`;
-	console.log("API_BASE:", API_BASE);
-	console.log("Query param:", query);
-	console.log("Full URL:", url);
 	try {
-		const response = await fetch(url, {
-			headers: {
-				Accept: "application/json",
-				"Content-Type": "application/json",
-			},
-		});
+		const response = await fetch(url);
 		console.log("Response status:", response.status);
 		console.log("Response headers:", Object.fromEntries(response.headers));
 		if (!response.ok) {

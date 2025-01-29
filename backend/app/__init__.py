@@ -10,14 +10,7 @@ def get_db():
 def create_app():
     app = Flask(__name__)
     
-    CORS(app, resources={
-        r"/*": {
-            "origins": "*",
-            "methods": ["GET", "POST", "OPTIONS"],  # Add OPTIONS explicitly
-            "allow_headers": ["Content-Type", "Authorization"],
-            "expose_headers": ["Content-Range", "X-Content-Range"]
-        }
-    })
+    CORS(app)
 
     from app.routes import api
     app.register_blueprint(api)
