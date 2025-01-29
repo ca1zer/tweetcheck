@@ -2,6 +2,12 @@
 
 ## Initial Setup and Deployment
 
+0. cd into backend
+
+```bash
+cd backend
+```
+
 1. Login to Fly
 
 ```bash

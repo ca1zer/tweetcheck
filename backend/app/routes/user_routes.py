@@ -2,6 +2,24 @@ from flask import jsonify
 from app import get_db
 from . import api
 
+
+def handle_user_not_in_db(identifier):
+    """
+    Handle the case when a requested user is not in the database.
+    This is a normal operation, not an error condition.
+    
+    Returns:
+        JSON response for user not found case
+    """
+    return jsonify({
+        'status': 'not_found',
+        'message': f'User {identifier} not found in database',
+        'suggested_actions': {
+            'search': True,
+            'create': True
+        }
+    }), 200  # Using 200 since this is a valid business case
+
 @api.route('/api/user/<identifier>')
 def get_user_data(identifier):
    """Get user data and network statistics"""
@@ -21,7 +39,7 @@ def get_user_data(identifier):
    """, (identifier, identifier)).fetchone()
    
    if not user:
-       return jsonify({'error': 'User not found'}), 404
+       return handle_user_not_in_db(identifier)
    
    # Get top followers with their latest metrics
    followers = db.execute("""
