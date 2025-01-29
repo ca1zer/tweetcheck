@@ -127,11 +127,6 @@ def save_daily_metrics(scores, G):
         )
     ''')
     
-    c.execute('''
-        CREATE INDEX IF NOT EXISTS idx_metrics_date 
-        ON user_daily_metrics(date)
-    ''')
-    
     today = datetime.now().date()
     
     print("Calculating in/out degrees...")
@@ -139,46 +134,62 @@ def save_daily_metrics(scores, G):
     out_degrees = dict(G.out_degree())
     
     print("Converting scores to percentiles...")
-    score_values = np.array(list(scores.values()))
-    ranks = pd.qcut(score_values, q=10000, labels=False, duplicates='drop')
-    percentiles = (ranks / 9999) * 100
+    # Convert scores to numpy array for faster operations
+    df = pd.DataFrame(list(scores.items()), columns=['user_id', 'pagerank_score'])
+    
+    # Calculate percentiles using numpy - O(n log n) operation
+    sorted_scores = np.sort(df['pagerank_score'].values)
+    score_to_percentile = {}
+    
+    print("Creating percentile lookup...")
+    # Create a lookup dictionary for score -> percentile
+    for score in df['pagerank_score'].unique():
+        # searchsorted is O(log n)
+        position = np.searchsorted(sorted_scores, score)
+        percentile = (position / len(sorted_scores)) * 100
+        score_to_percentile[score] = percentile
     
     print("Preparing data for insertion...")
     data = []
-    for i, (user_id, score) in enumerate(scores.items()):
-        node_data = G.nodes[user_id]
-        data.append((
-            user_id,
-            today,
-            float(score),
-            float(percentiles[i]),
-            node_data.get('follower_count', 0),
-            node_data.get('following_count', 0),
-            in_degrees.get(user_id, 0),
-            out_degrees.get(user_id, 0)
-        ))
+    # Process in chunks to reduce memory usage
+    chunk_size = 100000
     
-    print("Beginning database transaction...")
-    c.execute('BEGIN TRANSACTION')
-    
-    try:
-        batch_size = 50000
-        for i in range(0, len(data), batch_size):
-            batch = data[i:i + batch_size]
+    for i in range(0, len(df), chunk_size):
+        chunk = df.iloc[i:i + chunk_size]
+        
+        for _, row in chunk.iterrows():
+            user_id = row['user_id']
+            score = row['pagerank_score']
+            node_data = G.nodes[user_id]
+            
+            data.append((
+                user_id,
+                today,
+                float(score),
+                float(score_to_percentile[score]),
+                node_data.get('follower_count', 0),
+                node_data.get('following_count', 0),
+                in_degrees.get(user_id, 0),
+                out_degrees.get(user_id, 0)
+            ))
+            
+        # Insert the chunk immediately to free up memory
+        print(f"Inserting chunk {i//chunk_size + 1}...")
+        c.execute('BEGIN TRANSACTION')
+        try:
             c.executemany('''
                 INSERT OR REPLACE INTO user_daily_metrics 
                 (user_id, date, pagerank_score, pagerank_percentile, 
                 follower_count, following_count, inbound_edges, outbound_edges)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', batch)
-            print(f"Inserted batch {i//batch_size + 1}/{(len(data) + batch_size - 1)//batch_size}")
-        
-        conn.commit()
-        print(f"Successfully saved {len(scores)} daily metrics for {today}")
-    except Exception as e:
-        conn.rollback()
-        print(f"Error during insertion: {e}")
-        raise
-    finally:
-        conn.close()
+            ''', data)
+            conn.commit()
+            # Clear data after successful insertion
+            data = []
+        except Exception as e:
+            conn.rollback()
+            print(f"Error during insertion: {e}")
+            raise
     
+    print(f"Successfully saved metrics for {today}")
+    conn.close()
