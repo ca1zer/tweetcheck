@@ -1,7 +1,15 @@
 from app import create_app
 from app.graph_builder import build_graph, calculate_pagerank, save_daily_metrics
 import sqlite3
+from dotenv import load_dotenv
 import os
+
+# Load environment variables
+load_dotenv(verbose=True)
+
+# Debug print
+print("Loading environment variables...")
+print("RAPID_API_KEY present:", "Yes" if os.getenv("RAPID_API_KEY") else "No")
 
 app = create_app()
 
