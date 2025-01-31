@@ -80,8 +80,8 @@ def calculate_pagerank(G, alpha=0.15, max_iter=1000, tol=1e-6, seed_nodes=None):
             following = data.get('following_count', 1)
             p[i] = min(max(0, np.log((followers + 250) / (following + 250))), 5)
     
-            if following > 8000:
-                penalty_factor = min(following / 4000, 10)  # Cap penalty
+            if following > 3000:
+                penalty_factor = following / 2000
                 p[i] /= penalty_factor
 
     # Scale to [0,1] range
