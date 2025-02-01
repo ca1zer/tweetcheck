@@ -30,21 +30,21 @@ def handle_user_not_in_db(identifier, db):
     print("\033[91mChecking if user exists in database...\033[0m")
     
     # Single query to check both user_id and username
-    # user = db.execute("""
-    #     SELECT * FROM users 
-    #     WHERE user_id = ? 
-    #     OR LOWER(username) = LOWER(?)
-    # """, (str(identifier), str(identifier))).fetchone()
+    user = db.execute("""
+        SELECT * FROM users 
+        WHERE user_id = ? 
+        OR LOWER(username) = LOWER(?)
+    """, (str(identifier), str(identifier))).fetchone()
     
-    # if user:
-    #     print(f"\033[91mUser {identifier} found in database - Please use /api/user\033[0m")
-    #     return jsonify({
-    #         'status': 'error',
-    #         'message': f'User {identifier} is already in the database. Please use /api/user endpoint instead.',
-    #         'suggested_actions': {
-    #             'redirect': '/api/user'
-    #         }
-    #     }), 200
+    if user:
+        print(f"\033[91mUser {identifier} found in database - Please use /api/user\033[0m")
+        return jsonify({
+            'status': 'error',
+            'message': f'User {identifier} is already in the database. Please use /api/user endpoint instead.',
+            'suggested_actions': {
+                'redirect': '/api/user'
+            }
+        }), 200
 
     try:
         # Get user details from Twitter
@@ -99,7 +99,7 @@ def handle_user_not_in_db(identifier, db):
                 1 if user_details['is_in_niche'] else 0,
                 1 if user_details['checked_in_niche'] else 0
             ))
-            # db.commit()  # Commit the transaction to save changes
+            db.commit()  # Commit the transaction to save changes
             
             # Verify the save operation
             saved_user = db.execute(
@@ -107,12 +107,7 @@ def handle_user_not_in_db(identifier, db):
                 (user_details['user_id'],)
             ).fetchone()
 
-            # Just see if akrasia is here 
-            saved_user_sanity_check = db.execute(
-                "SELECT * FROM users WHERE LOWER(username) = LOWER(?)", 
-                ('akrasiaai',)
-            ).fetchone()
-            print("sanity check start", saved_user_sanity_check, "sanity check end")
+            
             
             if saved_user:
                 print(f"\033[92mVerified: User {user_details.get('username')} was successfully saved to database\033[0m")
@@ -183,7 +178,7 @@ def handle_user_not_in_db(identifier, db):
             'user_id': user_details['user_id'],
             'date': datetime.now().date(),
             'pagerank_score': follower_scores_sum,
-            'pagerank_percentile': None,  # Will be calculated later if needed
+            'pagerank_percentile': estimate_pagerank_percentile_fast(follower_scores_sum),
             'follower_count': user_details['follower_count'],
             'following_count': user_details['following_count'],
             'inbound_edges': len(metrics_dict), # followers in
@@ -206,7 +201,7 @@ def handle_user_not_in_db(identifier, db):
             metrics['inbound_edges'], # inbound_edges (length of followers list)
             metrics['outbound_edges'] # outbound_edges (default 0)
         ))
-
+        db.commit()
 
 
         
@@ -338,83 +333,44 @@ def get_followers(user_id: str, max_limit: int = 2500) -> List[Dict]:
         
     return all_followers
 
-def estimate_pagerank_percentile_fast(score, db):
+def estimate_pagerank_percentile_fast(score):
     """
-    Ultra-fast PageRank percentile estimation using anchor points.
-    Only queries 5 strategic points for estimation.
+    Ultra-fast PageRank percentile estimation using hardcoded anchor points.
+    Uses pre-calculated percentiles from hardcoded_percentiles.json for quick lookups.
     
     Args:
         score: The PageRank score to estimate percentile for
-        db: Database connection
         
     Returns:
         float: Estimated percentile (0-100)
     """
-    # Get 11 strategic anchor points for more granular percentile estimation
-    # Using NTILE and ROW_NUMBER for efficient single-scan calculation
-    anchor_points = db.execute("""
-        WITH latest_date AS (
-            SELECT MAX(date) as max_date 
-            FROM user_daily_metrics
-        ),
-        ranked_scores AS (
-            SELECT pagerank_score,
-                   NTILE(20) OVER (ORDER BY pagerank_score) as vigintile,
-                   ROW_NUMBER() OVER (PARTITION BY NTILE(20) OVER (ORDER BY pagerank_score) ORDER BY pagerank_score) as rn
-            FROM user_daily_metrics
-            WHERE date = (SELECT max_date FROM latest_date)
-            AND pagerank_score > 0  -- Skip any zero scores
-        )
-        SELECT 
-            MIN(CASE WHEN vigintile = 1 AND rn = 1 THEN pagerank_score END) as p5,
-            MIN(CASE WHEN vigintile = 2 AND rn = 1 THEN pagerank_score END) as p10,
-            MIN(CASE WHEN vigintile = 4 AND rn = 1 THEN pagerank_score END) as p20,
-            MIN(CASE WHEN vigintile = 6 AND rn = 1 THEN pagerank_score END) as p30,
-            MIN(CASE WHEN vigintile = 8 AND rn = 1 THEN pagerank_score END) as p40,
-            MIN(CASE WHEN vigintile = 10 AND rn = 1 THEN pagerank_score END) as p50,
-            MIN(CASE WHEN vigintile = 12 AND rn = 1 THEN pagerank_score END) as p60,
-            MIN(CASE WHEN vigintile = 14 AND rn = 1 THEN pagerank_score END) as p70,
-            MIN(CASE WHEN vigintile = 16 AND rn = 1 THEN pagerank_score END) as p80,
-            MIN(CASE WHEN vigintile = 18 AND rn = 1 THEN pagerank_score END) as p90,
-            MIN(CASE WHEN vigintile = 19 AND rn = 1 THEN pagerank_score END) as p95
-        FROM ranked_scores
-    """).fetchone()
+    import json
+    import os
     
-    if not anchor_points:
-        return 50.0  # Default to middle if no data
-    
-    # Convert to list for easier indexing with more granular points
-    anchors = [
-        (5, anchor_points['p5']),
-        (10, anchor_points['p10']),
-        (20, anchor_points['p20']),
-        (30, anchor_points['p30']),
-        (40, anchor_points['p40']),
-        (50, anchor_points['p50']),
-        (60, anchor_points['p60']),
-        (70, anchor_points['p70']),
-        (80, anchor_points['p80']),
-        (90, anchor_points['p90']),
-        (95, anchor_points['p95'])
-    ]
+    # Load hardcoded percentiles
+    json_path = os.path.join(os.getcwd(), 'data', 'hardcoded_percentiles.json')
+    try:
+        with open(json_path) as f:
+            anchors = json.load(f)
+    except Exception as e:
+        print(f"\033[91mError loading percentiles: {str(e)}\033[0m")
+        return 50.0
     
     # Find which segment the score falls into
+    if score <= anchors[0][0]:  # Below lowest score
+        return max(1, (score / anchors[0][0]) * anchors[0][1])
+    elif score >= anchors[-1][0]:  # Above highest score
+        remaining_range = 100 - anchors[-1][1]
+        overshoot = (score - anchors[-1][0]) / anchors[-1][0]
+        return min(99.9, anchors[-1][1] + (overshoot * remaining_range))
+        
+    # Linear search through segments (since we have few points)
     for i in range(len(anchors) - 1):
-        if score <= anchors[0][1]:  # Below p10
-            return max(1, (score / anchors[0][1]) * 10)
-        elif score >= anchors[-1][1]:  # Above p90
-            remaining_range = 100 - anchors[-1][0]
-            overshoot = (score - anchors[-1][1]) / anchors[-1][1]
-            return min(99.9, anchors[-1][0] + (overshoot * remaining_range))
-        elif anchors[i][1] <= score <= anchors[i + 1][1]:
+        if anchors[i][0] <= score <= anchors[i + 1][0]:
             # Linear interpolation within the segment
-            segment_start = anchors[i]
-            segment_end = anchors[i + 1]
-            
-            # Calculate position within segment
-            segment_progress = (score - segment_start[1]) / (segment_end[1] - segment_start[1])
-            segment_size = segment_end[0] - segment_start[0]
-            
-            return segment_start[0] + (segment_progress * segment_size)
+            score_range = anchors[i + 1][0] - anchors[i][0]
+            percentile_range = anchors[i + 1][1] - anchors[i][1]
+            progress = (score - anchors[i][0]) / score_range
+            return anchors[i][1] + (progress * percentile_range)
     
     return 50.0  # Fallback

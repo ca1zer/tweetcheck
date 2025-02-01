@@ -42,6 +42,7 @@ export default function HomePage() {
 		try {
 			const data = await getUserData(username);
 			setSelectedUser(data);
+			console.log(data, "this is selected user");
 		} catch (e) {
 			setUserError(e instanceof Error ? e.message : "Failed to load user data");
 		} finally {

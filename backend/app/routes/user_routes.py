@@ -1,5 +1,6 @@
 from flask import jsonify, request
 from app import get_db
+import json
 from . import api
 from .handle_user_not_in_db import handle_user_not_in_db
 
@@ -90,6 +91,8 @@ def get_user_data(identifier):
         JOIN following_relationships f2 ON f1.following_id = f2.user_id
         WHERE f1.user_id = ? AND f2.following_id = ?
     """, (user['user_id'], user['user_id'])).fetchone()['count']
+
+    print(json.dumps(dict(user), indent=2), 'THIS INBOUND')
 
     response = {
         'user': {
