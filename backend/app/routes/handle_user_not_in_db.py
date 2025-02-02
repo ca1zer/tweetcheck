@@ -138,11 +138,14 @@ def handle_user_not_in_db(identifier, db):
         # Get their follower list
         followers = get_followers(user_details["user_id"])
         
-        # Calculate sum of pagerank_score/outbound_edges for all followers
+        # Calculate pagerank scores and get top followers
         follower_scores_sum = 0
-        if followers:
+        top_followers = []
+        follower_ids = [f['user_id'] for f in followers]
+        
+        if follower_ids:
             # Get the most recent metrics for each follower
-            placeholders = ','.join(['?' for _ in followers])
+            placeholders = ','.join(['?' for _ in follower_ids])
             metrics_query = f"""
                 WITH LatestDates AS (
                     SELECT user_id, MAX(date) as max_date
@@ -150,7 +153,7 @@ def handle_user_not_in_db(identifier, db):
                     WHERE user_id IN ({placeholders})
                     GROUP BY user_id
                 )
-                SELECT m.user_id, m.pagerank_score, m.outbound_edges
+                SELECT m.user_id, m.pagerank_score, m.pagerank_percentile, m.outbound_edges
                 FROM user_daily_metrics m
                 INNER JOIN LatestDates ld
                     ON m.user_id = ld.user_id 
@@ -158,28 +161,32 @@ def handle_user_not_in_db(identifier, db):
                 WHERE m.outbound_edges > 0
             """
             
-            metrics_results = db.execute(metrics_query, followers).fetchall()
+            metrics_results = db.execute(metrics_query, follower_ids).fetchall()
             
             # Create a dict for quick lookup
             metrics_dict = {str(row['user_id']): row for row in metrics_results}
             
-            # Calculate sum
-            for follower_id in followers:
+            # Calculate sum and prepare top followers
+            for follower in followers:
+                follower_id = follower['user_id']
                 if follower_id in metrics_dict:
                     metrics = metrics_dict[follower_id]
                     follower_scores_sum += (metrics['pagerank_score'] / (metrics['outbound_edges'] + 1))
-                # If follower not found in metrics, add 0 (implicit)
                     
+                    top_followers.append({
+                        'user_id': follower_id,
+                        'username': follower['username'],
+                        'follower_count': follower['follower_count'],
+                        'profile_pic_url': follower['profile_pic_url'],
+                        'pagerank_score': metrics['pagerank_score'],
+                        'pagerank_percentile': metrics['pagerank_percentile']
+                    })
+            
+            # Sort by pagerank score and take top 10
+            top_followers.sort(key=lambda x: x['pagerank_score'], reverse=True)
+            top_followers = top_followers[:10]
+            
             follower_scores_sum *= 0.85
-            # followers_with_pagerank = []
-            # for follower_id in followers:
-            #     if follower_id in metrics_dict:
-            #         metrics = metrics_dict[follower_id]
-            #         followers_with_pagerank.append({
-            #             'user_id': follower_id,
-            #             'pagerank_score': metrics['pagerank_score'],
-            #             'outbound_edges': metrics['outbound_edges'],
-            #         })
                 
         
         # Calculate percentile for the follower_scores_sum
@@ -230,21 +237,31 @@ def handle_user_not_in_db(identifier, db):
 
         
         
-        return jsonify({
-            'status': 'external_found',
-            'message': f'User {identifier} found on Twitter',
-            'user': user_details,
-            'follower_count': len(followers),
-            'followers': followers,
-            'follower_pagerank_sum': follower_scores_sum,
-            # 'follower_pagerank_percentile': follower_scores_percentile,
-            'suggested_actions': {
-                'import': True,
-                'analyze': True
+        # Prepare final response in desired format
+        response = {
+            'network_stats': {
+                'followers_in_dataset': metrics['inbound_edges'],
+                'following_in_dataset': metrics['outbound_edges'],
+                'reciprocal_connections': 0  # Always 0 for new users
             },
-            'metrics': metrics
-            # 'followers_with_pagerank': followers_with_pagerank,
-        }), 200
+            'top_followers': top_followers,
+            'user': {
+                'user_id': user_details.get('user_id', ''),
+                'username': user_details.get('username', ''),
+                'description': user_details.get('description', ''),
+                'follower_count': user_details.get('follower_count', 0),
+                'following_count': user_details.get('following_count', 0),
+                'is_verified': bool(user_details.get('is_verified', False)),
+                'profile_pic_url': user_details.get('profile_pic_url', None),
+                'profile_banner_url': user_details.get('profile_banner_url', None),
+                'pagerank_score': metrics.get('pagerank_score', 0.0),
+                'pagerank_percentile': metrics.get('pagerank_percentile', 0.0),
+                'network_followers': metrics.get('inbound_edges', 0),
+                'network_following': metrics.get('outbound_edges', 0)
+            }
+        }
+        
+        return jsonify(response), 200
         
     except Exception as e:
         # If Twitter API fails, return not found
@@ -344,14 +361,16 @@ def get_followers(user_id: str, max_limit: int = 2500) -> List[Dict]:
         #     "follower_count": user["follower_count"]
         # } for user in response["results"]]
 
-        # Extract into not object and only one field, user_id, for preparation of getting pagerank scores of everything
-        users = [str(user["user_id"]) for user in response["results"]]
-
+        # Extract user objects with required fields, using .get() for optional fields
+        users = [{
+            'user_id': str(user.get('user_id', '')),
+            'username': user.get('username', ''),
+            'follower_count': user.get('follower_count', 0),
+            'profile_pic_url': user.get('profile_pic_url', None)
+        } for user in response['results']]
 
         all_followers.extend(users)
 
-        
-        
         continuation_token = response.get("continuation_token")
         time.sleep(0.1)  # Small delay between requests
         

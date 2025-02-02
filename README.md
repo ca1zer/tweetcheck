@@ -31,6 +31,8 @@ fly volumes create tweetcheck_data --size 20 --region sjc
 4. Deploy Application
 
 ```bash
+fly secrets set DATABASE_URL="/data/twitter.db"
+
 fly deploy
 ```
 
@@ -62,3 +64,7 @@ Delete a volume:
 ```bash
 fly volumes destroy <volume_id>
 ```
+
+# Vercel Deploy
+
+vercel deploy --prod

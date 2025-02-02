@@ -1,8 +1,19 @@
 export function NetworkStats({ stats, user }) {
-	const networkCoverage = (
-		(stats.followers_in_dataset / user.follower_count) *
-		100
-	).toFixed(1);
+	// Early return with loading state if data isn't available
+	if (!stats || !user) {
+		return (
+			<div className="glass-card rounded-2xl p-8">
+				<h2 className="text-3xl gradient-text mb-8">Network Statistics</h2>
+				<div className="text-white/60">Loading...</div>
+			</div>
+		);
+	}
+
+	const networkCoverage = user.follower_count
+		? (((stats.followers_in_dataset ?? 0) / user.follower_count) * 100).toFixed(
+				1
+		  )
+		: "0.0";
 
 	return (
 		<div className="glass-card rounded-2xl p-8">
@@ -14,7 +25,7 @@ export function NetworkStats({ stats, user }) {
 						Total Followers
 					</p>
 					<p className="text-2xl font-bold">
-						{user.follower_count.toLocaleString()}
+						{(user.follower_count ?? 0).toLocaleString()}
 					</p>
 				</div>
 
@@ -23,7 +34,7 @@ export function NetworkStats({ stats, user }) {
 						Total Following
 					</p>
 					<p className="text-2xl font-bold">
-						{user.following_count.toLocaleString()}
+						{(user.following_count ?? 0).toLocaleString()}
 					</p>
 				</div>
 
@@ -32,7 +43,7 @@ export function NetworkStats({ stats, user }) {
 						Followers in Dataset
 					</p>
 					<p className="text-2xl font-bold">
-						{stats.followers_in_dataset.toLocaleString()}
+						{(stats.followers_in_dataset ?? 0).toLocaleString()}
 						<span className="text-sm text-white/40 ml-2 font-medium">
 							({networkCoverage}%)
 						</span>
@@ -44,7 +55,7 @@ export function NetworkStats({ stats, user }) {
 						Following in Dataset
 					</p>
 					<p className="text-2xl font-bold">
-						{stats.following_in_dataset.toLocaleString()}
+						{(stats.following_in_dataset ?? 0).toLocaleString()}
 					</p>
 				</div>
 
@@ -53,7 +64,7 @@ export function NetworkStats({ stats, user }) {
 						Reciprocal Connections
 					</p>
 					<p className="text-2xl font-bold">
-						{stats.reciprocal_connections.toLocaleString()}
+						{(stats.reciprocal_connections ?? 0).toLocaleString()}
 					</p>
 				</div>
 
@@ -62,7 +73,7 @@ export function NetworkStats({ stats, user }) {
 						Network Percentile
 					</p>
 					<p className="text-2xl font-bold">
-						{user.pagerank_percentile.toFixed(1)}%
+						{(user.pagerank_percentile ?? 0).toFixed(1)}%
 					</p>
 				</div>
 			</div>

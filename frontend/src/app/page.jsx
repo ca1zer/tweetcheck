@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { searchUsers, getUserData, analyzeNewUser } from "../lib/api";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { NetworkStats } from "../components/NetworkStats";
 import { FollowerList } from "../components/FollowerList";
 
 export default function HomePage() {
+	const selectedUserRef = useRef(null);
 	const [query, setQuery] = useState("");
 	const [results, setResults] = useState([]);
 	const [isSearching, setIsSearching] = useState(false);
@@ -17,6 +18,8 @@ export default function HomePage() {
 	const [manualUsername, setManualUsername] = useState("");
 	const [isAnalyzing, setIsAnalyzing] = useState(false);
 	const [hasSearched, setHasSearched] = useState(false);
+	const [showLongLoadingMessage, setShowLongLoadingMessage] = useState(false);
+	const [showQuickLoadingMessage, setShowQuickLoadingMessage] = useState(false);
 
 	async function handleSearch(e) {
 		e.preventDefault();
@@ -39,14 +42,28 @@ export default function HomePage() {
 		}
 	}
 
+	const scrollToSelectedUser = useCallback(() => {
+		if (selectedUserRef.current) {
+			selectedUserRef.current.scrollIntoView({
+				behavior: "smooth",
+				block: "start",
+			});
+		}
+	}, []);
+
 	async function handleUserSelect(username) {
 		setIsLoadingUser(true);
 		setUserError(null);
+		setShowQuickLoadingMessage(true);
+
+		// Hide quick message after 1 second
+		setTimeout(() => setShowQuickLoadingMessage(false), 1000);
 
 		try {
 			const data = await getUserData(username);
 			setSelectedUser(data);
-			console.log(data, "this is selected user");
+			// Scroll after data is loaded
+			setTimeout(scrollToSelectedUser, 100); // Small delay to ensure DOM update
 		} catch (e) {
 			setUserError(e instanceof Error ? e.message : "Failed to load user data");
 		} finally {
@@ -55,7 +72,17 @@ export default function HomePage() {
 	}
 
 	return (
-		<main className="min-h-screen">
+		<main className="min-h-screen relative">
+			{/* Corner Banner */}
+			<a
+				href="https://x.com/AkrasiaAI"
+				target="_blank"
+				rel="noopener noreferrer"
+				className="fixed top-4 right-4 text-sm font-medium text-[#394374] hover:text-[#4A5FBF] transition-colors z-50 tracking-wider drop-shadow-sm"
+			>
+				Powered by Akrasia AI
+			</a>
+
 			<div className="container mx-auto px-4 py-12">
 				<div className="max-w-2xl mx-auto">
 					<div className="text-center mb-8 animate-float">
@@ -230,11 +257,20 @@ export default function HomePage() {
 										onClick={async () => {
 											if (manualUsername.trim()) {
 												setIsAnalyzing(true);
+												setShowLongLoadingMessage(false);
+
+												// Set up timer for long loading message
+												const loadingTimer = setTimeout(() => {
+													setShowLongLoadingMessage(true);
+												}, 4000);
+
 												try {
 													const data = await analyzeNewUser(
 														manualUsername.trim()
 													);
 													setSelectedUser(data);
+													// Scroll after analysis is complete
+													setTimeout(scrollToSelectedUser, 100); // Small delay to ensure DOM update
 												} catch (e) {
 													setUserError(
 														e instanceof Error
@@ -242,7 +278,9 @@ export default function HomePage() {
 															: "Failed to analyze user"
 													);
 												} finally {
+													clearTimeout(loadingTimer);
 													setIsAnalyzing(false);
+													setShowLongLoadingMessage(false);
 												}
 											}
 										}}
@@ -296,7 +334,7 @@ export default function HomePage() {
 						)}
 
 						{selectedUser && (
-							<div className="space-y-8">
+							<div ref={selectedUserRef} className="space-y-8">
 								<div className="glass-card rounded-2xl p-10 border border-neon-purple/20">
 									<div className="flex items-center">
 										<div className="relative">
@@ -350,6 +388,79 @@ export default function HomePage() {
 					</div>
 				</div>
 			</div>
+
+			{/* Quick loading message */}
+			{showQuickLoadingMessage && (
+				<div className="fixed inset-0 flex items-center justify-center z-50">
+					<div className="glass-card rounded-lg p-4 animate-fade-up text-center backdrop-blur-sm">
+						<div className="mb-2">
+							<svg
+								className="animate-spin h-5 w-5 mx-auto text-neon-purple"
+								fill="none"
+								viewBox="0 0 24 24"
+							>
+								<circle
+									className="opacity-25"
+									cx="12"
+									cy="12"
+									r="10"
+									stroke="currentColor"
+									strokeWidth="4"
+								></circle>
+								<path
+									className="opacity-75"
+									fill="currentColor"
+									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+								></path>
+							</svg>
+						</div>
+						<p className="text-lg bg-gradient-to-r from-neon-blue to-neon-purple bg-clip-text text-transparent font-medium">
+							Fetching Network Analysis
+						</p>
+					</div>
+				</div>
+			)}
+
+			{/* Long loading message */}
+			{showLongLoadingMessage && (
+				<div className="fixed inset-0 flex items-center justify-center z-50 px-4">
+					<div className="glass-card rounded-xl p-6 shadow-lg border border-neon-purple/40 max-w-lg mx-auto text-center animate-fade-up backdrop-blur-sm">
+						<div className="mb-4">
+							<svg
+								className="animate-spin h-8 w-8 mx-auto text-neon-purple"
+								fill="none"
+								viewBox="0 0 24 24"
+							>
+								<circle
+									className="opacity-25"
+									cx="12"
+									cy="12"
+									r="10"
+									stroke="currentColor"
+									strokeWidth="4"
+								></circle>
+								<path
+									className="opacity-75"
+									fill="currentColor"
+									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+								></path>
+							</svg>
+						</div>
+						<h3 className="text-2xl font-semibold mb-3 bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink bg-clip-text text-transparent">
+							Building Your Network Graph
+						</h3>
+						<p className="text-white/90 mb-3 text-lg">
+							We're analyzing your connections and calculating influence metrics
+							to provide the most accurate insights.
+						</p>
+						<div className="space-y-2 text-white/70">
+							<p className="text-sm">✨ Mapping follower relationships</p>
+							<p className="text-sm">📊 Computing network influence scores</p>
+							<p className="text-sm">🔍 Identifying key connections</p>
+						</div>
+					</div>
+				</div>
+			)}
 		</main>
 	);
 }
