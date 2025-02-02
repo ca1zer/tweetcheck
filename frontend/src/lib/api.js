@@ -38,3 +38,13 @@ export async function getUserHistory(identifier) {
 	}
 	return response.json();
 }
+
+export async function analyzeNewUser(username) {
+	const url = `${API_BASE}/api/user/${username}?not_in_database=true`;
+	console.log("Making request to:", url);
+	const response = await fetch(url);
+	if (!response.ok) {
+		throw new Error("Failed to analyze user");
+	}
+	return response.json();
+}

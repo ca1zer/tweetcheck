@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { searchUsers, getUserData } from "../lib/api";
+import { searchUsers, getUserData, analyzeNewUser } from "../lib/api";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { NetworkStats } from "../components/NetworkStats";
 import { FollowerList } from "../components/FollowerList";
@@ -14,6 +14,9 @@ export default function HomePage() {
 	const [selectedUser, setSelectedUser] = useState(null);
 	const [isLoadingUser, setIsLoadingUser] = useState(false);
 	const [userError, setUserError] = useState(null);
+	const [manualUsername, setManualUsername] = useState("");
+	const [isAnalyzing, setIsAnalyzing] = useState(false);
+	const [hasSearched, setHasSearched] = useState(false);
 
 	async function handleSearch(e) {
 		e.preventDefault();
@@ -23,6 +26,7 @@ export default function HomePage() {
 		setError(null);
 		setSelectedUser(null);
 		setUserError(null);
+		setHasSearched(true);
 
 		try {
 			const users = await searchUsers(query);
@@ -164,7 +168,7 @@ export default function HomePage() {
 													{user.follower_count.toLocaleString()} followers
 												</p>
 											</div>
-											{user.pagerank_score && (
+											{user.pagerank_score >= 0 && (
 												<div className="text-right">
 													<div className="text-xs text-white/40 mb-0.5">
 														Network Rank
@@ -180,9 +184,102 @@ export default function HomePage() {
 							</div>
 						)}
 
-						{query && !isSearching && results.length === 0 && (
-							<div className="glass-card rounded p-3 text-center text-white/40 text-sm">
-								<p>No users found matching "{query}"</p>
+						{query && hasSearched && !isSearching && results.length === 0 && (
+							<div className="glass-card rounded p-6 text-center space-y-4">
+								<p className="text-white/50 text-lg font-medium mb-2">
+									No users found in our database
+								</p>
+
+								<div className="max-w-md mx-auto">
+									<p className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-neon-purple to-neon-pink text-base font-medium mb-2">
+										Don't worry! We can still analyze your profile
+									</p>
+									<p className="text-white/70 text-sm mb-3">
+										While our database focuses on influential crypto
+										personalities, we can instantly analyze any Twitter
+										profile's metrics and network influence.
+									</p>
+									<div className="relative group">
+										<div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+											<svg
+												className="h-4 w-4 text-white/30 group-hover:text-neon-purple/50 transition-colors duration-300"
+												fill="none"
+												viewBox="0 0 24 24"
+												stroke="currentColor"
+											>
+												<path
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													strokeWidth={2}
+													d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+												/>
+											</svg>
+										</div>
+										<input
+											type="text"
+											value={manualUsername}
+											onChange={(e) => setManualUsername(e.target.value)}
+											placeholder="Enter your Twitter username"
+											className="w-full pl-10 pr-3 h-9 rounded-lg search-input text-sm"
+											disabled={isAnalyzing}
+										/>
+										<div className="absolute inset-0 -z-10 bg-gradient-to-r from-neon-purple/20 via-neon-pink/20 to-neon-blue/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg blur-xl" />
+									</div>
+
+									<button
+										onClick={async () => {
+											if (manualUsername.trim()) {
+												setIsAnalyzing(true);
+												try {
+													const data = await analyzeNewUser(
+														manualUsername.trim()
+													);
+													setSelectedUser(data);
+												} catch (e) {
+													setUserError(
+														e instanceof Error
+															? e.message
+															: "Failed to analyze user"
+													);
+												} finally {
+													setIsAnalyzing(false);
+												}
+											}
+										}}
+										className="search-button px-6 h-9 flex items-center justify-center min-w-[100px] mt-3 mx-auto"
+										disabled={isAnalyzing || !manualUsername.trim()}
+									>
+										<span className="relative">
+											{isAnalyzing ? (
+												<div className="flex items-center">
+													<svg
+														className="animate-spin -ml-1 mr-2 h-4 w-4"
+														fill="none"
+														viewBox="0 0 24 24"
+													>
+														<circle
+															className="opacity-25"
+															cx="12"
+															cy="12"
+															r="10"
+															stroke="currentColor"
+															strokeWidth="4"
+														></circle>
+														<path
+															className="opacity-75"
+															fill="currentColor"
+															d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+														></path>
+													</svg>
+													Analyzing...
+												</div>
+											) : (
+												"Analyze"
+											)}
+											<div className="absolute inset-0 -z-10 bg-gradient-to-r from-neon-purple via-neon-pink to-neon-blue opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg blur-xl" />
+										</span>
+									</button>
+								</div>
 							</div>
 						)}
 

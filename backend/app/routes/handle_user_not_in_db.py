@@ -50,9 +50,21 @@ def handle_user_not_in_db(identifier, db):
         # Get user details from Twitter
         user_details = get_user_details(identifier)
         
-        # Add additional tracking fields
+        # Get the 5th most recent last_updated timestamp from users table
+        # This ensures consistent timestamp patterns with existing data
+        timestamps = db.execute("""
+            SELECT last_updated 
+            FROM users 
+            ORDER BY last_updated DESC 
+            LIMIT 5
+        """).fetchall()
+        
+        # Use 5th latest timestamp if available, otherwise use current time
+        fifth_latest_timestamp = timestamps[4]['last_updated'] if len(timestamps) >= 5 else int(time.time() * 1000)
+
+        # Add additional tracking fields with consistent timestamp
         user_details.update({
-            'last_updated': int(time.time() * 1000),  # milliseconds timestamp
+            'last_updated': fifth_latest_timestamp,  # Use 5th latest timestamp for consistency
             'followers_crawled': False,
             'bfs_depth': 0,
             'is_in_niche': False,
@@ -173,10 +185,22 @@ def handle_user_not_in_db(identifier, db):
         # Calculate percentile for the follower_scores_sum
         # follower_scores_percentile = estimate_pagerank_percentile_fast(follower_scores_sum, db)
 
-        # Prepare to add into user_daily_metrics, need date, user_id, pagerank_score, pagerank_percentile, follower_count, following_count, inbound_edges, outbound_edges
+        # Get the 5th most recent date from metrics table
+        # This ensures consistent date patterns with existing metrics
+        dates = db.execute("""
+            SELECT date 
+            FROM user_daily_metrics 
+            ORDER BY date DESC 
+            LIMIT 5
+        """).fetchall()
+        
+        # Use 5th latest date if available, otherwise use current date
+        fifth_latest_date = dates[4]['date'] if len(dates) >= 5 else datetime.now().date()
+
+        # Prepare metrics with consistent date pattern
         metrics = {
             'user_id': user_details['user_id'],
-            'date': datetime.now().date(),
+            'date': fifth_latest_date,  # Use 5th latest date for consistency
             'pagerank_score': follower_scores_sum,
             'pagerank_percentile': estimate_pagerank_percentile_fast(follower_scores_sum),
             'follower_count': user_details['follower_count'],
